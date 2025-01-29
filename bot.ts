@@ -28,30 +28,67 @@ bot.on('text', (ctx) => {
 
     if (!users.has(userId)) {
         // Сохраняем ссылку на Twitch канал
-        users.set(userId, { twitch: message, subscribed: [] });
+        users.set(userId, { twitch: message, subscribed: [], step: 0 });
         // Добавляем канал в список
         channels.push({ link: message, ownerId: userId });
 
         ctx.reply(
             'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
-            Markup.inlineKeyboard([
+            Markup.inlineKeyboard([ 
                 Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/innkomaf16'),
                 Markup.button.callback('Проверить подписку ✅', 'check_subscription')
             ])
         );
     } else {
-        ctx.reply('Вы уже отправили свою ссылку. Нажмите "Начать подписываться"!');
+        ctx.reply('Вы уже отправили свою ссылку. Нажмите "Начать подписываться"!'); 
     }
 });
 
 // Обработчик нажатия на кнопку "Проверить подписку"
 bot.action('check_subscription', (ctx) => {
-    ctx.reply(
-        'Готовы подписываться? Let’s go! 🏃‍♂️',
-        Markup.inlineKeyboard([
-            Markup.button.callback('Начать подписываться 📺', 'start_subscribing')
-        ])
-    );
+    const userId = ctx.from.id;
+    const user = users.get(userId);
+
+    if (user.step === 0) {
+        // Вероятность 80% для неудачной подписки (первоначальная проверка)
+        const isFailure = Math.random() < 0.8;
+        
+        if (isFailure) {
+            user.step = 1;  // Переходим к следующему шагу
+            ctx.reply(
+                'Не удалось подтвердить подписку, убедись что ты подписался и проверь еще раз! 💖',
+                Markup.inlineKeyboard([ 
+                    Markup.button.callback('Проверить еще раз ✅', 'check_subscription_retry')
+                ])
+            );
+        } else {
+            user.step = 2;  // Подписка подтверждена сразу
+            ctx.reply(
+                'Подписка подтверждена! 🙌',
+                Markup.inlineKeyboard([ 
+                    Markup.button.callback('Подписаться еще 👉', 'start_subscribing'),
+                    Markup.button.callback('Прекратить 🚫', 'stop')
+                ])
+            );
+        }
+    }
+});
+
+// Обработчик нажатия на кнопку "Проверить еще раз"
+bot.action('check_subscription_retry', (ctx) => {
+    const userId = ctx.from.id;
+    const user = users.get(userId);
+
+    if (user.step === 1) {
+        user.step = 2;  // На втором шаге подписка всегда подтверждается
+        ctx.reply(
+            'Подписка подтверждена! 🙌',
+            Markup.inlineKeyboard([ 
+                Markup.button.callback('Подписаться еще 👉', 'start_subscribing'),
+                Markup.button.callback('Прекратить 🚫', 'stop')
+            ])
+        );
+    }
 });
 
 // Обработчик нажатия на кнопку "Начать подписываться"
@@ -72,7 +109,7 @@ bot.action('start_subscribing', (ctx) => {
     if (availableChannels.length === 0) {
         ctx.reply(
             'На данный момент нет доступных каналов для подписки. 😕',
-            Markup.inlineKeyboard([
+            Markup.inlineKeyboard([ 
                 Markup.button.callback('Хорошо 🙂', 'ready_to_subscribe')
             ])
         );
@@ -80,7 +117,7 @@ bot.action('start_subscribing', (ctx) => {
         const channel = availableChannels[0];
         ctx.reply(
             `Подпишитесь на канал: ${channel.link} 👉`,
-            Markup.inlineKeyboard([
+            Markup.inlineKeyboard([ 
                 Markup.button.callback('Проверить подписку ✅', `confirm_${channel.link}`)
             ])
         );
@@ -91,7 +128,7 @@ bot.action('start_subscribing', (ctx) => {
 bot.action('ready_to_subscribe', (ctx) => {
     ctx.reply(
         'Готовы подписываться? Let’s go! 🏃‍♂️',
-        Markup.inlineKeyboard([
+        Markup.inlineKeyboard([ 
             Markup.button.callback('Начать подписываться 📺', 'start_subscribing')
         ])
     );
@@ -108,10 +145,43 @@ bot.action(/confirm_.+/, (ctx) => {
         return;
     }
 
+    // Вероятность 15% для неудачной подписки
+    const isFailure = Math.random() < 0.15;
+    if (isFailure) {
+        ctx.reply(
+            'Не удалось подтвердить подписку. Пожалуйста, попробуйте снова! 💖',
+            Markup.inlineKeyboard([ 
+                Markup.button.callback('Проверить еще раз ✅', `confirm_retry_${channelLink}`)
+            ])
+        );
+    } else {
+        user.subscribed.push(channelLink);
+        ctx.reply(
+            'Подписка подтверждена! 🙌',
+            Markup.inlineKeyboard([ 
+                Markup.button.callback('Подписаться еще 👉', 'start_subscribing'),
+                Markup.button.callback('Прекратить 🚫', 'stop')
+            ])
+        );
+    }
+});
+
+// Обработчик нажатия на кнопку "Проверить еще раз" для подтверждения подписки
+bot.action(/confirm_retry_.+/, (ctx) => {
+    const userId = ctx.from.id;
+    const channelLink = ctx.match[0].replace('confirm_retry_', '');
+
+    const user = users.get(userId);
+    if (!user) {
+        ctx.reply('Пожалуйста, отправьте ссылку на ваш Twitch канал сначала!');
+        return;
+    }
+
+    // Подписка подтверждается на втором шаге всегда
     user.subscribed.push(channelLink);
     ctx.reply(
         'Подписка подтверждена! 🙌',
-        Markup.inlineKeyboard([
+        Markup.inlineKeyboard([ 
             Markup.button.callback('Подписаться еще 👉', 'start_subscribing'),
             Markup.button.callback('Прекратить 🚫', 'stop')
         ])
