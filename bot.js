@@ -45,6 +45,11 @@ bot.start((ctx) => {
     }
 });
 
+// Функция для проверки ссылки на Twitch
+function isTwitchLink(url) {
+    return url.includes('twitch.tv');
+}
+
 // Обработчик текста
 bot.on('text', (ctx) => {
     const userId = ctx.from.id;
@@ -55,18 +60,22 @@ bot.on('text', (ctx) => {
     saveStats(stats);
 
     if (!users.has(userId)) {
-        // Сохраняем ссылку на Twitch канал
-        users.set(userId, { twitch: message, subscribed: [], step: 0 });
-        // Добавляем канал в список
-        channels.push({ link: message, ownerId: userId });
+        if (isTwitchLink(message)) {
+            // Сохраняем ссылку на Twitch канал
+            users.set(userId, { twitch: message, subscribed: [], step: 0 });
+            // Добавляем канал в список
+            channels.push({ link: message, ownerId: userId });
 
-        ctx.reply(
-            'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
-            Markup.inlineKeyboard([ 
-                Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/innkomaf16'),
-                Markup.button.callback('Проверить подписку ✅', 'check_subscription')
-            ])
-        );
+            ctx.reply(
+                'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
+                Markup.inlineKeyboard([ 
+                    Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/innkomaf16'),
+                    Markup.button.callback('Проверить подписку ✅', 'check_subscription')
+                ])
+            );
+        } else {
+            ctx.reply('⚠️ Вы отправили неверную ссылку. Пожалуйста, отправьте ссылку на ваш Twitch канал, например: https://www.twitch.tv/yourchannel');
+        }
     } else {
         ctx.reply('Вы уже отправили свою ссылку. Нажмите "Начать подписываться"!'); 
     }
@@ -100,6 +109,7 @@ bot.action('check_subscription', (ctx) => {
         }
     }
 });
+
 
 // Обработчик нажатия на кнопку "Проверить еще раз"
 bot.action('check_subscription_retry', (ctx) => {
