@@ -92,7 +92,7 @@ bot.on('text', (ctx) => {
             ctx.reply(
                 'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
                 Markup.inlineKeyboard([ 
-                    Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/innkomaf16'),
+                    Markup.button.url('Подписаться 💜', 'hhttps://www.twitch.tv/komainn'),
                     Markup.button.callback('Проверить подписку ✅', 'check_subscription')
                 ])
             );
