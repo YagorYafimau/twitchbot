@@ -103,11 +103,7 @@ bot.on('text', (ctx) => {
             ctx.reply(
                 'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
                 Markup.inlineKeyboard([ 
-<<<<<<< HEAD
                     Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/komainn'), // Исправлено: убрана лишняя "h"
-=======
-                    Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/komainn'),
->>>>>>> 0f7e4515aadaf3f9936137e8c45a6b562836c814
                     Markup.button.callback('Проверить подписку ✅', 'check_subscription')
                 ])
             );
