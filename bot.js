@@ -2,8 +2,7 @@ const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');  // Для работы с файловой системой
 
 const bot = new Telegraf('7695014969:AAGql5j-NLxvRU_G50idM6Fm92GCTn-oB8s'); // Замените на ваш токен
-const ADMIN_CHAT_ID = '@twitchvzaimadmin'; // Чат для проверки подписок в реальном времени
-const GLOBAL_ADMIN_CHAT_ID = '-1002665172835'; // Новый закрытый чат для глобальной проверки подписок (замените на ваш chat_id)
+const ADMIN_CHAT_ID = '@twitchvzaimadmin'; // Замените на ваш chat_id
 
 // Список каналов и пользователей
 const users = new Map();
@@ -48,22 +47,6 @@ function resetUserState(userId) {
         user.step = 0; // Сбрасываем состояние
         console.log(`Состояние пользователя ${userId} сброшено.`);
     }
-}
-
-// Функция для отправки списка пользователей в глобальный чат
-function sendUserListToGlobalAdmin() {
-    let userList = "📋 Список пользователей:\n\n";
-    users.forEach((user, userId) => {
-        userList += `👤 @${user.username} - ${user.twitch}\n`;
-    });
-
-    bot.telegram.sendMessage(GLOBAL_ADMIN_CHAT_ID, userList, {
-        reply_markup: {
-            inline_keyboard: Array.from(users).map(([userId, user]) => [
-                { text: `👤 @${user.username}`, callback_data: `check_user_${userId}` }
-            ])
-        }
-    });
 }
 
 // Обработчик команды /start
