@@ -1,12 +1,13 @@
 const { Telegraf, Markup } = require('telegraf');
 const fs = require('fs');  // Для работы с файловой системой
 
-const bot = new Telegraf('7695014969:AAGql5j-NLxvRU_G50idM6Fm92GCTn-oB8s');
-const ADMIN_CHAT_ID = '@twitchvzaimadmin'; // Замените на ваш chat_id
+const bot = new Telegraf('7695014969:AAGql5j-NLxvRU_G50idM6Fm92GCTn-oB8s'); // Замените на ваш токен
+const ADMIN_CHAT_ID = '@twitchvzaimadmin'; // Чат для проверки подписок в реальном времени
+const GLOBAL_ADMIN_CHAT_ID = '-1002665172835'; // Новый закрытый чат для глобальной проверки подписок (замените на ваш chat_id)
 
 // Список каналов и пользователей
 const users = new Map();
-const channels = []; // Список каналов с ссылкой и ownerId
+const channels = []; // Список каналов с ссылкой, ownerId и количеством подписчиков
 
 // Таймер для сброса состояния пользователя (5 минут)
 const USER_STATE_TIMEOUT = 300000; // 5 минут в миллисекундах
@@ -49,6 +50,22 @@ function resetUserState(userId) {
     }
 }
 
+// Функция для отправки списка пользователей в глобальный чат
+function sendUserListToGlobalAdmin() {
+    let userList = "📋 Список пользователей:\n\n";
+    users.forEach((user, userId) => {
+        userList += `👤 @${user.username} - ${user.twitch}\n`;
+    });
+
+    bot.telegram.sendMessage(GLOBAL_ADMIN_CHAT_ID, userList, {
+        reply_markup: {
+            inline_keyboard: Array.from(users).map(([userId, user]) => [
+                { text: `👤 @${user.username}`, callback_data: `check_user_${userId}` }
+            ])
+        }
+    });
+}
+
 // Обработчик команды /start
 bot.start((ctx) => {
     const userId = ctx.from.id;
@@ -60,7 +77,8 @@ bot.start((ctx) => {
     // Проверка, если пользователь уже прислал ссылку на канал
     if (!users.has(userId)) {
         ctx.reply(
-            'Добро пожаловать! Отправьте ссылку на ваш Twitch канал 📺',
+            'Добро пожаловать! Отправьте ссылку на ваш Twitch канал 📺\n\n' +
+            '🌟 Важно: на сколько человек вы подпишетесь, столько раз ваш канал будет показан другим пользователям! 🌟',
             Markup.removeKeyboard()
         );
     } else {
@@ -85,14 +103,24 @@ bot.on('text', (ctx) => {
     if (!users.has(userId)) {
         if (isTwitchLink(message)) {
             // Сохраняем ссылку на Twitch канал
-            users.set(userId, { twitch: message, subscribed: [], step: 0 });
+            users.set(userId, { 
+                twitch: message, 
+                subscribed: [], 
+                step: 0, 
+                subscribersCount: 0, // Количество подписчиков
+                viewsCount: 0 // Количество показов канала
+            });
             // Добавляем канал в список
-            channels.push({ link: message, ownerId: userId });
+            channels.push({ 
+                link: message, 
+                ownerId: userId, 
+                subscribersCount: 0 // Количество подписчиков канала
+            });
 
             ctx.reply(
                 'Ссылка сохранена! Перед тем как начать, подпишитесь на мой Twitch канал 💖',
                 Markup.inlineKeyboard([ 
-                    Markup.button.url('Подписаться 💜', 'hhttps://www.twitch.tv/komainn'),
+                    Markup.button.url('Подписаться 💜', 'https://www.twitch.tv/komainn'), // Исправлено: убрана лишняя "h"
                     Markup.button.callback('Проверить подписку ✅', 'check_subscription')
                 ])
             );
@@ -178,11 +206,27 @@ bot.action(/approve_(\d+)/, (ctx) => {
         if (user.currentChannel) {
             user.subscribed.push(user.currentChannel);
             user.currentChannel = null; // Сбрасываем текущий канал
+
+            // Увеличиваем счетчик подписчиков для канала
+            const channel = channels.find(ch => ch.link === user.currentChannel);
+            if (channel) {
+                channel.subscribersCount++;
+            }
+
+            // Увеличиваем счетчик показов для пользователя
+            user.viewsCount += user.subscribed.length;
+
+            // Показываем канал пользователя другим пользователям
+            const availableChannels = getAvailableChannels(userId);
+            availableChannels.slice(0, user.subscribed.length).forEach(ch => {
+                // Отправляем сообщение с предложением подписаться на канал пользователя
+                ctx.telegram.sendMessage(ch.ownerId, `Ваш канал был показан пользователю @${ctx.from.username}`);
+            });
         }
 
         ctx.telegram.sendMessage(
             userId,
-            `Подписка на канал подтверждена! 🙌`,
+            `Подписка на канал подтверждена! 🙌\nВаш канал будет показан ${user.subscribed.length} раз(а).`,
             Markup.inlineKeyboard([
                 Markup.button.callback('Подписаться еще 👉', 'subscribe_more'),
                 Markup.button.callback('Прекратить 🚫', 'stop')
