@@ -236,26 +236,37 @@ bot.action('subscribe_more', (ctx) => {
     const user = users.get(userId);
 
     if (!user) {
-        ctx.reply('Вы не зарегистрированы. Пожалуйста, отправьте ссылку на ваш Twitch канал 📺');
+        ctx.reply('Вы не зарегистрированы. Пожалуйста, отправьте ссылку на ваш Twitch канал');
         return;
     }
 
     const availableChannels = getAvailableChannels(userId);
 
+    // Функция перемешивания массива (Fisher-Yates)
+    function shuffleArray(array) {
+        const arr = [...array]; // Копируем, чтобы не менять оригинал
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
     if (availableChannels.length === 0) {
         ctx.reply(
-            'На данный момент нет доступных каналов для подписки. Попробуйте позже ⏳',
+            'На данный момент нет доступных каналов для подписки. Попробуйте позже',
             Markup.inlineKeyboard([ 
-                Markup.button.callback('Хорошо 🙂', 'ready_to_subscribe')
+                Markup.button.callback('Хорошо', 'ready_to_subscribe')
             ])
         );
     } else {
-        const channel = availableChannels[0];
-        user.currentChannel = channel.link; // Сохраняем текущий канал для проверки
+        const shuffled = shuffleArray(availableChannels);
+        const channel = shuffled[0];
+        user.currentChannel = channel.link;
         ctx.reply(
-            `Подпишитесь на канал: ${channel.link} 👉`,
+            `Подпишитесь на канал: ${channel.link}`,
             Markup.inlineKeyboard([ 
-                Markup.button.callback(`Проверить подписку ✅`, `check_subscription_new_${channel.link}`)
+                Markup.button.callback(`Проверить подписку`, `check_subscription_new_${channel.link}`)
             ])
         );
     }
